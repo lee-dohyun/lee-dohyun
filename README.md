@@ -1,16 +1,33 @@
-## Hi there 👋
+# 안녕하세요, 이도현입니다 👋
 
-<!--
-**lee-dohyun/lee-dohyun** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+MSA 아키텍처와 홈 인프라를 직접 설계하고 운영하는 백엔드/인프라 엔지니어입니다.
+서비스 개발부터 네트워크, DNS, 배포 파이프라인까지 엔드투엔드로 다루는 것을 좋아합니다.
 
-Here are some ideas to get you started:
+---
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## 🛒 쇼핑몰 MSA 프로젝트
+
+마이크로서비스 아키텍처 기반 쇼핑몰을 설계·구축하고 있습니다.
+
+- **서비스 분리**: `product`, `customer` 등 도메인 단위 서비스로 분리하여 독립 배포/확장이 가능한 구조 설계
+- **단일 진입점(Gateway) 전환**: 개별적으로 흩어져 있던 트래픽 경로를 Gateway 하나로 통합, Kubernetes Ingress 리소스도 단일 파일(`leedohyun-com-ingress.yaml`)로 정리해 운영 복잡도 감소
+- **운영 이슈 대응**: `dev-in-prod` 설정 누락, 빌드 과정에 숨어있던 버그 등 배포 전에 드러나지 않는 문제들을 찾아내 수정·재배포
+- **작업 추적 체계화**: Redmine으로 이슈/작업 로그를 남기며 변경 이력을 관리
+
+## 🏠 홈 인프라 & 네트워크 운영
+
+개인 서버 인프라를 직접 구성하고 보안을 강화해 왔습니다.
+
+- **네트워크 진입점 최소화**: 공유기(ASUS) WAN 노출 포트를 HTTP/HTTPS/SSH만 남기고 전부 정리, 불필요한 공격 표면 제거
+- **동적 IP 대응**: DDNS로 외부에서 안정적으로 접근 가능한 도메인 운영
+- **DNS/이메일 보안 강화**: Route 53으로 도메인 DNS 레코드를 관리하고, 사용하지 않는 이메일 발신 경로를 막기 위해 SPF `-all`, DMARC `reject` 정책으로 전환해 스푸핑 리스크 차단
+
+## 🧭 일하는 방식
+
+- 문제를 발견하면 임시방편보다 **근본 원인을 찾아 구조적으로 정리**하는 것을 선호합니다
+- 인프라 변경은 되돌리기 어려운 작업이 많다는 것을 알기에, **작업 전 정리 → 단계적 전환 → 문서/이슈로 기록**하는 흐름을 지킵니다
+- AI 도구(Claude Code)를 개발 파트너로 적극 활용해 아키텍처 설계, 리팩터링, 운영 자동화의 생산성을 높이고 있습니다
+
+---
+
+📫 궁금한 점이 있다면 이슈나 PR로 편하게 남겨주세요.
