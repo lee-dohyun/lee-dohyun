@@ -80,70 +80,73 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 
 ## 🤖 AI Agent Harness Engineering
 
-단순히 AI를 "사용"하는 것이 아니라, **12개 레포지토리에 걸쳐 실제로 실행되는 에이전트 하네스**를
-설계했습니다. 핵심 교훈은 **선언이 아니라 배선**이었습니다 — 모든 저장소에 복붙돼 있던 범용 페르소나
-문서는 어떤 도구도 로드하지 않는 죽은 문서였습니다. 전부 걷어내고, 그 저장소에서 실제로 터졌던 사고를
-점검 목록으로 갖는 서브에이전트와 사람이 건너뛸 수 없는 훅으로 대체했습니다.
+이기종 AI 코딩 도구(Claude Code · Codex · Antigravity)가 동일한 코드베이스에서 동시에 작업하는 것을
+전제로 **에이전트 하네스**를 설계·운영합니다. 설계 목표는 두 가지입니다 — 어떤 도구로 작업하든 동일한
+품질 기준이 적용될 것, 그리고 그 기준이 문서 규약에 머무르지 않고 **실행 가능한 게이트**로 존재할 것.
 
-### Sub-agent Topology
+규약(Canon) · 도메인 검수(Sub-agent) · 결정론적 게이트(Gate)의 3계층으로 분리하고, 상위 계층의 판단이
+누락되더라도 하위 계층이 받아내도록 구성했습니다.
 
-각 서브에이전트는 그 저장소에서 실제로 터졌던 장애 유형에 대응합니다.
+### Harness Architecture
 
 ```
-                    ┌──────────────────────────────┐
-                    │   ~/msa/AGENTS.md (Canon)     │
-                    │   도구 무관 공통 규칙          │
-                    │                               │
-                    │   ┌─ Check & Claim            │
-                    │   ├─ Worktree 세션 격리        │
-                    │   ├─ Cross-Repo Impact Check  │
-                    │   └─ GitHub Issues = SSOT     │
-                    └──────────┬───────────────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-    ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐
-    │ Frontend     │  │ Backend          │  │ Infra            │
-    ├──────────────┤  ├──────────────────┤  ├──────────────────┤
-    │ ui-token-    │  │ flyway-migration-│  │ gateway-route-   │
-    │  guard       │  │  guard           │  │  guard           │
-    │  (토큰 미러   │  │  (엔티티↔마이그레 │  │  (로그인 전 경로  │
-    │   불일치)     │  │   이션 누락)      │  │   화이트리스트)   │
-    │              │  │                  │  │                  │
-    │ shell-       │  │ tx-idempotency-  │  │ i18n / mermaid   │
-    │  contract-   │  │  reviewer        │  │  무결성 훅        │
-    │  guard       │  │  (재고 차감 멱등) │  │  (조용한 빈칸     │
-    │  (v1 런타임   │  │                  │  │   렌더링)         │
-    │   계약 파기)  │  │ cache-           │  │                  │
-    │              │  │  invalidation-   │  │                  │
-    │              │  │  guard           │  │                  │
-    └──────────────┘  └──────────────────┘  └──────────────────┘
-
-    공통: pre-push-verify 훅 — main push가 곧 프로덕션 배포인 저장소에서
-          typecheck/test를 통과하지 못하면 push 도구 호출 자체를 차단
+┌─ Layer 3 · Cross-Tool Canon ─────────────────────────────────────┐
+│  AGENTS.md — 도구 무관 공통 규약 (11개 서비스 레포지토리에 배치) │
+│  Check & Claim · Worktree Isolation · Handoff Protocol           │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │  규약 (convention)
+┌─ Layer 2 · Domain Sub-agents ──▼─────────────────────────────────┐
+│  레포지토리별 실패 모드에 대응하는 도메인 특화 검수자            │
+│  Frontend · Backend · Infra — 커밋 전 자동 위임                  │
+└────────────────────────────────┬─────────────────────────────────┘
+                                 │  권고 (advisory)
+┌─ Layer 1 · Deterministic Gates ▼─────────────────────────────────┐
+│  verify.sh — git hook · agent hook · CI 가 공유하는 단일 진입점  │
+│  token-mirror · i18n/diagram · architecture-drift · 회귀 테스트  │
+│  LLM 비의존 · 우회 불가 (enforced)                               │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### Agent Governance Protocol
+### Enforcement Model
 
-에이전트가 "지키기로 선언한 규칙"과 "기계가 실제로 강제하는 규칙"을 구분해 설계했습니다.
+| 계층 | 구현 | 실행 시점 | 강제력 |
+|------|------|-----------|--------|
+| **Deterministic Gates** | 셸 스크립트 · 회귀 테스트 (LLM 비의존) | pre-push · CI | 우회 불가 |
+| **Domain Sub-agents** | 레포지토리별 특화 검수 에이전트 | 커밋 전 위임 | 권고 |
+| **Cross-Tool Canon** | `AGENTS.md` 공통 규약 | 세션 시작 시 로드 | 규약 |
 
-**기계가 강제하는 것 (hook / test — 건너뛸 수 없음)**
+**Deterministic Gates**
 
-1. **Pre-push Verification** — CI 의존 금지. `main` push가 곧 프로덕션 배포인 구조라, 로컬
-   `typecheck` / `test` 실패 시 push 도구 호출을 차단
-2. **Design Token Mirror Check** — 손으로 유지되는 두 토큰 파일의 불일치와, 정의되지 않아
-   조용히 죽는 CSS 변수 참조를 편집 직후 자동 검출
-3. **i18n / Diagram Integrity Check** — 다국어 데이터에서 한 언어에만 없는 키(= 그 언어에서
-   에러 없이 빈칸으로 렌더링)와 잘린 다이어그램 정의를 자동 검출
-4. **Public Path Regression Test** — 로그인 전 접근해야 하는 경로를 테스트로 고정, 화이트리스트
-   누락이 프로덕션이 아니라 빌드에서 실패하도록
+1. **Pre-push Verification** — `verify.sh` 단일 진입점을 git hook · 에이전트 훅 · CI가 공유.
+   `main` push가 곧 프로덕션 배포인 파이프라인이므로, 검증을 CI에만 두지 않고 push 시점에서 차단
+2. **Design Token Mirror Check** — 이원화된 토큰 정의 간 불일치와, 미정의 참조로 런타임에 조용히
+   무효화되는 CSS 변수를 편집 직후 검출
+3. **i18n / Diagram Integrity Check** — 특정 언어에만 누락되어 에러 없이 빈 문자열로 렌더링되는 키와,
+   파손된 다이어그램 정의를 검출
+4. **Architecture Drift Detection** — 라이브 클러스터의 Ingress 목록과 아키텍처 문서를 주기적으로
+   대조하여 문서-실제 간 괴리를 검출
+5. **Public Path Regression Test** — 인증 화이트리스트를 회귀 테스트로 고정. 경로 누락이 프로덕션이
+   아니라 빌드 단계에서 실패하도록
 
-**캐논이 규정하는 것 (`~/msa/AGENTS.md`)**
+**Domain Sub-agents**
 
-5. **Check & Claim + Worktree 격리** — 여러 AI 도구·세션을 동시에 운용하는 환경에서 같은 작업의
-   중복 착수와 공용 클론의 물리적 충돌을 방지
-6. **Cross-Repository Impact Analysis** — 공통 컴포넌트·API 스키마 변경 시 참조 저장소 사전 탐색.
-   런타임 셸은 4개 프론트에 동시 반영되므로 특히 강제
+| Sub-agent | 검수 대상 |
+|-----------|-----------|
+| `ui-token-guard` | 디자인 토큰 정합성 |
+| `shell-contract-guard` | 런타임 셸 v1 계약 호환성 |
+| `flyway-migration-guard` | 엔티티 ↔ 마이그레이션 정합성 |
+| `tx-idempotency-reviewer` | 트랜잭션 전파 · 쓰기 멱등성 |
+| `cache-invalidation-guard` | 캐시 무효화 경로 |
+| `gateway-route-guard` | 인증 화이트리스트 정합성 |
+
+**Cross-Tool Canon**
+
+- **Check & Claim + Worktree Isolation** — 동시 세션 환경에서 작업의 중복 착수와 공용 클론의
+  물리적 충돌을 방지
+- **Handoff Protocol** — 진행 상태를 GitHub Issue에 구조화된 형식으로 기록. 도구별 로컬 메모리는
+  타 도구가 참조할 수 없으므로, 이슈를 도구 간 인계의 단일 매체(SSOT)로 고정
+- **Cross-Repository Impact Analysis** — 공유 컴포넌트 · API 스키마 변경 시 참조 레포지토리 사전 탐색.
+  런타임 셸 변경은 4개 프론트엔드에 동시 반영되므로 특히 강제
 
 ---
 
@@ -186,7 +189,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 - **Attack Surface Minimization** — WAN 노출 포트를 HTTP/HTTPS/SSH로 한정, 불필요한 공격 벡터 제거
 - **DNS Spoofing Prevention** — SPF `-all` + DMARC `reject` 정책으로 이메일 스푸핑 원천 차단
 - **Dynamic IP Resilience** — DDNS 기반 도메인 운영으로 가정용 네트워크 환경에서도 안정적 서비스 제공
-- **Supply Chain Security** — Dependabot 의존성 자동 업데이트 + Trivy 컨테이너 이미지 취약점 스캔을 12개 저장소 전체에 롤아웃
+- **Supply Chain Security** — Dependabot 의존성 자동 업데이트 + Trivy 컨테이너 이미지 취약점 스캔을 11개 서비스 레포지토리 전체에 적용
 
 ---
 
