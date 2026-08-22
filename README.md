@@ -11,7 +11,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 
 - **End-to-End Ownership** — 도메인 모델링 → API 설계 → 프론트엔드 → 인프라 → 모니터링까지 수직 관통
 - **AI-Native Development** — 코드를 작성하는 것이 아니라, 코드를 작성·검수·배포하는 **에이전트 시스템**을 설계
-- **Design Decision as Code** — 모든 아키텍처 의사결정을 `AGENTS.md`, `task.md`, GitHub Projects로 코드화하여 추적
+- **Design Decision as Code** — 모든 아키텍처 의사결정을 `AGENTS.md`(캐논)와 GitHub Issues/Projects로 코드화하여 추적. 여러 AI 도구·세션이 동시에 작업하는 환경이라, 진행 상황은 로컬 파일이 아니라 이슈 코멘트(Claim/Progress/Handoff)에 남겨 도구 간 인계가 항상 가능하게 함
 
 ---
 
@@ -186,6 +186,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 - **Attack Surface Minimization** — WAN 노출 포트를 HTTP/HTTPS/SSH로 한정, 불필요한 공격 벡터 제거
 - **DNS Spoofing Prevention** — SPF `-all` + DMARC `reject` 정책으로 이메일 스푸핑 원천 차단
 - **Dynamic IP Resilience** — DDNS 기반 도메인 운영으로 가정용 네트워크 환경에서도 안정적 서비스 제공
+- **Supply Chain Security** — Dependabot 의존성 자동 업데이트 + Trivy 컨테이너 이미지 취약점 스캔을 12개 저장소 전체에 롤아웃
 
 ---
 
