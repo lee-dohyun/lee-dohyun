@@ -18,8 +18,10 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 ## 🏗️ PosSelect — Micro Frontends × MSA E-Commerce Platform
 
 풀스택 마이크로서비스 및 마이크로 프론트엔드 아키텍처 기반의 커머스 플랫폼.
-10개 독립 레포지토리(프론트 4 · 공유 UI/셸 2 · API 3 · 게이트웨이 1)가 빌드 타임이 아니라
-**런타임에** 통합됩니다. 여기에 아키텍처 문서 사이트와 이 프로필 저장소를 더한 12개를 운영합니다.
+11개 독립 레포지토리(프론트 5 · 공유 UI/셸 2 · API 3 · 게이트웨이 1)가 빌드 타임이 아니라
+**런타임에** 통합됩니다. 여기에 아키텍처 문서 사이트와 이 프로필 저장소를 더한 13개를 운영합니다.
+외부 판매자가 직접 상품을 등록하는 **파트너센터**(partner.front)까지 포함해, 고객·직원·파트너 세 부류의 사용자를
+별도 인증 영역(Keycloak realm 3개)으로 나눠 받습니다.
 
 ### System Architecture
 
@@ -27,14 +29,14 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
                         ┌─────────────────────────────────────────┐
                         │          posselect-shell (MFE Host)     │
                         │   Runtime Federation / Module Stitching │
-                        └────┬──────┬──────┬──────┬──────────────┘
-                             │      │      │      │
-                    ┌────────┘  ┌───┘  ┌───┘  ┌───┘
-                    ▼           ▼      ▼      ▼
-              customer.    product. admin.  store.
-               front       front   front   front
-                    │           │      │      │
-                    └─────┬─────┘──────┘──────┘
+                        └────┬──────┬──────┬──────┬──────┬───────┘
+                             │      │      │      │      │
+                    ┌────────┘  ┌───┘  ┌───┘  ┌───┘  ┌───┘
+                    ▼           ▼      ▼      ▼      ▼
+              customer.    product. admin.  store.  partner.
+               front       front   front   front   front
+                    │           │      │      │      │
+                    └─────┬─────┘──────┘──────┘──────┘
                           ▼
                ┌─────────────────────┐
                │  @posselect/ui      │
@@ -73,6 +75,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 | **UI 검증** | Storybook `play` 함수 기반 인터랙션 테스트 | 시각적 회귀 방지 + 컴포넌트 단위 자동화 검증 |
 | **API Gateway** | Spring Cloud Gateway (WebFlux/Netty) | 논블로킹 I/O 기반 리버스 프록시, JWT 직접 검증 아키텍처 |
 | **인증** | Keycloak + JWT 토큰 직접 검증 | Gateway 레벨 SSO, 백엔드 서비스 무상태(Stateless) 유지 |
+| **파트너(외부 판매자) 포털** | 별도 realm + 토큰 `seller_id` 로 데이터 범위 강제, 규칙 검증 → 사람 심사 순 | 외부인에게 쓰기를 열면서 직원 백오피스와 인증 경계를 분리. 파트너 상품은 항상 미공개로 생성되고 고시·판매 정책·금지어 자동 검사를 통과한 것만 직원 심사로 올라감 |
 | **데이터 계층** | PostgreSQL + MySQL + Redis (서비스별 분리) | Polyglot Persistence — 도메인 특성에 맞는 스토리지 선택 |
 | **오브젝트 스토리지** | MinIO (S3 호환) | 이미지/에셋의 자체 호스팅, imgproxy 연동 실시간 리사이징 |
 
