@@ -19,7 +19,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 
 풀스택 마이크로서비스 및 마이크로 프론트엔드 아키텍처 기반의 커머스 플랫폼.
 11개 독립 레포지토리(프론트 5 · 공유 UI/셸 2 · API 3 · 게이트웨이 1)가 빌드 타임이 아니라
-**런타임에** 통합됩니다. 여기에 아키텍처 문서 사이트와 이 프로필 저장소를 더한 13개를 운영합니다.
+**런타임에** 통합됩니다. 여기에 개발자 도구 사이트, 아키텍처 문서 사이트와 이 프로필 저장소를 더한 14개를 운영합니다.
 외부 판매자가 직접 상품을 등록하는 **파트너센터**(partner.front)까지 포함해, 고객·직원·파트너 세 부류의 사용자를
 별도 인증 영역(Keycloak realm 3개)으로 나눠 받습니다.
 
@@ -76,7 +76,9 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 | **API Gateway** | Spring Cloud Gateway (WebFlux/Netty) | 논블로킹 I/O 기반 리버스 프록시, JWT 직접 검증 아키텍처 |
 | **인증** | Keycloak + JWT 토큰 직접 검증 | Gateway 레벨 SSO, 백엔드 서비스 무상태(Stateless) 유지 |
 | **파트너(외부 판매자) 포털** | 별도 realm + 토큰 `seller_id` 로 데이터 범위 강제, 규칙 검증 → 사람 심사 순 | 외부인에게 쓰기를 열면서 직원 백오피스와 인증 경계를 분리. 파트너 상품은 항상 미공개로 생성되고 고시·판매 정책·금지어 자동 검사를 통과한 것만 직원 심사로 올라감 |
-| **데이터 계층** | PostgreSQL + MySQL + Redis (서비스별 분리) | Polyglot Persistence — 도메인 특성에 맞는 스토리지 선택 |
+| **주문 정합성** | 재고 차감 멱등성 + 보상 복원 미결 기록·재시도 스케줄러 | 분산 트랜잭션 없이 서비스 간 정합성 확보. 실패한 재고 복원을 잃지 않고 성공할 때까지 재시도 |
+| **회원 등급** | 주문 금액에 등급 할인 적용 + 주문 시점 등급 스냅샷 | 등급 정책이 나중에 바뀌어도 이미 체결된 주문의 금액 근거가 남도록. 정책 관리(직원) → 할인 적용(주문) → 표시(고객) 를 서비스별로 분리 |
+| **데이터 계층** | PostgreSQL + MySQL + Redis (서비스별 DB 분리) | Polyglot Persistence — 도메인 특성에 맞는 스토리지 선택 |
 | **오브젝트 스토리지** | MinIO (S3 호환) | 이미지/에셋의 자체 호스팅, imgproxy 연동 실시간 리사이징 |
 
 ---
@@ -94,7 +96,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 
 ```
 ┌─ Layer 3 · Cross-Tool Canon ─────────────────────────────────────┐
-│  AGENTS.md — 도구 무관 공통 규약 (11개 서비스 레포지토리에 배치) │
+│  AGENTS.md — 도구 무관 공통 규약 (13개 레포지토리에 배치)        │
 │  Check & Claim · Worktree Isolation · Handoff Protocol           │
 └────────────────────────────────┬─────────────────────────────────┘
                                  │  규약 (convention)
@@ -168,7 +170,7 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 └──────────────────────────────────────────────────┘
 
 ┌─ Data Layer ─────────────────────────────────────┐
-│  PostgreSQL (×3)  │  MySQL  │  Redis (×2)        │
+│  PostgreSQL (×2)  │  MySQL  │  Redis (×2)        │
 │  MinIO (S3)       │  imgproxy (실시간 리사이징)    │
 └──────────────────────────────────────────────────┘
 
@@ -177,8 +179,8 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 │  Keycloak SSO     │  cert-manager (Let's Encrypt)│
 │  Spring Cloud     │  Velero Backup               │
 │   Gateway (단일    │  Route 53 DNS                │
-│   진입점·인증)     │  SPF -all / DMARC reject     │
-│  DDNS (동적 IP)    │  WAN 포트 최소화 (HTTP/S/SSH) │
+│   진입점·인증)     │  SPF · DKIM · DMARC          │
+│  DDNS (동적 IP)    │  WAN 포트 한정 (웹/SSH/SMTP)  │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -189,10 +191,10 @@ MSA · Micro Frontends · AI Agent Orchestration을 관통하는 아키텍처를
 
 ### Network Security Architecture
 
-- **Attack Surface Minimization** — WAN 노출 포트를 HTTP/HTTPS/SSH로 한정, 불필요한 공격 벡터 제거
-- **DNS Spoofing Prevention** — SPF `-all` + DMARC `reject` 정책으로 이메일 스푸핑 원천 차단
+- **Attack Surface Minimization** — WAN 노출 포트를 HTTP/HTTPS/SSH/SMTP로 한정하고 SSH는 공개키 인증만 허용
+- **Mail Authentication** — SPF · DKIM 서명 · DMARC 보고 적용. 클러스터 내부 발신자도 예외 없이 587 + SASL 인증을 거치며 무인증 릴레이를 두지 않음
 - **Dynamic IP Resilience** — DDNS 기반 도메인 운영으로 가정용 네트워크 환경에서도 안정적 서비스 제공
-- **Supply Chain Security** — Dependabot 의존성 자동 업데이트 + Trivy 컨테이너 이미지 취약점 스캔을 11개 서비스 레포지토리 전체에 적용
+- **Supply Chain Security** — Dependabot 의존성 자동 업데이트 + Trivy 컨테이너 이미지 취약점 스캔 + gitleaks 시크릿 유출 스캔을 서비스 레포지토리 전체에 적용
 
 ---
 
